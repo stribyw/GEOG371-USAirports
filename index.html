@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Airports in America</title>
+		<style>
+		h1 {
+		  float: right;
+			position: absolute;
+		  top: 1px;
+		  right: 250px;
+		}
+		.lab3Summary {
+			float: right;
+			position: absolute;
+			top: 75px;
+			right: 265px;
+		}
+
+		</style>
+		<!-- External Stylesheets -->
+		<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+		<link href='http://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+		<link rel="stylesheet" href="css/main.css">
+
+	</head>
+	<body>
+		<div id="wrapper">
+
+			<div id="map" style=
+				"width: 850px;
+				height: 745px;
+				position: relative;
+				left-margin: 20px;
+				top-margin: 10px;
+			  border: 1px;
+			  padding: 5px;
+	    	border-style: solid;
+			  border-color: #000000;"></div>
+
+		</div>
+		<!--<section class="credits"><p> W Keith Striby, CEOAS, OSU | Winter 2017 | GEOG 371 Geovisualization: Web Mapping &copy; </p></section>-->
+		<section class="titleLab">
+			<h1>Practical Exercise 3: </br>Thematic Web Map Design</h1>
+			<div class="lab3Summary">
+				<p>The thematic map shows the location </br>
+					of airports in the United States </br>
+					utilizing data from a JavaScript file. </br>
+					Choropleth map data is also imported </br>
+					from a JavaScript file. Interactive </br>
+					elements include: hovering over </br>
+					states to see the total number </br>
+				 	airports displayed with Airport </br>
+				 	Density layer on, clicking on </br>
+				 	states with Airport Density layer </br>
+				 	on to zoom to the state, clicking on </br>
+					airplanes to reveal airport names </br>
+					and, layer control. Quantile </br> 
+					classification was used to distribute </br> 
+					the values of airports in each </br>
+					state into groups.</br> </br>
+					W Keith Striby, CEOAS, OSU </br>
+					GEOG 371 Winter 2017 </br>
+					Geovisualization: Web Mapping </br>
+					&copy;</p>
+		</section>
+
+
+		<!-- Add the Leaflet JavaScript library -->
+		<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+		<!-- add JQuery library -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+		<!--import airport locations -->
+		<script src="js/airports.js"></script>
+		<script src="js/us-states.js"></script>
+
+		<script>
+
+		<!-- base layers -->
+		var mbAttr = 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiamFrb2J6aGFvIiwiYSI6ImNpcms2YWsyMzAwMmtmbG5icTFxZ3ZkdncifQ.P9MBej1xacybKcDN_jehvw',
+		mbUrl = 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+
+		var grayscale   = L.tileLayer(mbUrl, {id: 'mapbox.light', attribution: mbAttr}),
+				streets  = L.tileLayer(mbUrl, {id: 'mapbox.streets',   attribution: mbAttr});
+
+		<!-- airport icons -->
+		var airportIcon = L.Icon.extend({
+			options:{
+				shadowUrl:	'img/airport_sd.png',
+				iconSize: [15, 15],
+				shadowSize: [17, 10],
+				iconAnchor: [15, 15],
+				shadowAnchor: [15, 15],
+				popupAnchor: [-8, -9]
+			}
+		});
+		<!-- extension of airport icons to have two different based off of control tower below -->
+		var airportREDIcon = new airportIcon ({iconUrl: 'img/airport2.png'});
+		var airportBLKIcon = new airportIcon ({iconUrl: 'img/airport1.png'});
+
+		var airports = null;
+
+		<!-- airports GeoJSON, sets popup to display airport name, and sets airport -->
+		<!-- icon the be black if no control tower, else red if control tower -->
+		airports = L.geoJson(USairports, {
+			onEachFeature: function (feature, layer) {
+				layer.bindPopup(feature.properties.AIRPT_NAME);
+			},
+			pointToLayer: function (feature, latlng) {
+				if (feature.properties.CNTL_TWR == "N"){
+					var marker = L.marker(latlng,{icon: airportBLKIcon});
+				}
+				else {
+					var marker = L.marker(latlng,{icon: airportREDIcon});
+				};
+				return marker;
+			}
+		});
+
+		var map = L.map('map', {
+			center: [49.43956, -113.81836],
+			zoom: 3,
+			layers: [grayscale, airports],
+			attributionControl: false
+		});
+
+		<!-- starting of setup for choropleth map based on # of airports in each state -->
+
+
+		<!-- function for color ramp -->
+		function setColor(density){
+			return 	density > 17 ? '#e7298a' :
+							density > 11 ? '#df65b0' :
+							density > 7  ? '#c994c7' :
+							               '#d4b9da' ;
+		}
+
+		<!-- function to fill color based on airport density in each state -->
+		<!-- fillColor & fillOpacity set fill properties, the remaining set border properties -->
+		function style(feature) {
+			return {
+				fillColor: setColor(feature.properties.count),
+				fillOpacity: 0.5,
+				weight: 2,
+				opacity: 1,
+				color: '#ffffff',
+				dashArray: '4'
+			};
+		}
+
+ 	  // <!-- Map ELEMENTS -->
+		// <!-- leaflet control object for legend -->
+		var legend = L.control({position: 'topright'});
+
+		<!-- running function that adds legend to map -->
+		legend.onAdd = function (){
+			var div = L.DomUtil.create('div', 'legend');
+			div.innerHTML += '<b>Number of Airports</b><br />';
+			div.innerHTML += '<i style="background: #e7298a; opacity: 0.5"></i><p>18+</p>';
+			div.innerHTML += '<i style="background: #df65b0; opacity: 0.5"></i><p>12-17</p>';
+			div.innerHTML += '<i style="background: #c994c7; opacity: 0.5"></i><p>8-11</p>';
+			div.innerHTML += '<i style="background: #d4b9da; opacity: 0.5"></i><p>1-7</p>';
+			div.innerHTML += '<hr><b>Control Tower</b><br />';
+			div.innerHTML += '<img src="img/airport1.png"><p> No</p><br /r>';
+			div.innerHTML += '<img src="img/airport2.png"><p> Yes</p>';
+			return div;
+		};
+
+		<!-- add legend to map -->
+		legend.addTo(map);
+
+		<!-- Scalebar -->
+		L.control.scale({position: 'bottomleft'}).addTo(map);
+
+		<!-- adding interaction with mouseover -->
+		var info = L.control();
+
+		info.onAdd = function (map) {
+				this._div = L.DomUtil.create('div', 'info');
+				this.update();
+				return this._div;
+		};
+
+		info.update = function (props) {
+			this._div.innerHTML = '<h4>Number of Airports</h4>' + (props ?
+				'<b>' + props.name + '</b><br />' + props.count + ' Airports'
+				: 'Hover over a state</br>with Airport Density</br>layer on.');
+		};
+		info.addTo(map)
+
+		function highlightFeature(e) {
+			var layer = e.target;
+
+			layer.setStyle({
+				weight: 5,			//sets boarderline thickness of states
+				color: '#666',
+				dashArray: '',
+				fillOpacity: 0.7	//sets the weight of the fill color within the polygon when hovering over a state
+			});
+			if(!L.Browser.ie && !L.Browser.opera && !L.Browser.edge){
+				layer.bringToFront();
+			}
+			info.update(layer.feature.properties);
+		}
+
+		var geojson;
+
+		<!-- reset to default state after mouse is not over -->
+		function resetHighlight(e){
+			geojson.resetStyle(e.target);
+			info.update();
+		}
+
+		<!-- click listener to zoom to the state -->
+		function zoomToFeature(e){
+			map.fitBounds(e.target.getBounds());
+		}
+		<!-- listeners to the state layer -->
+		function onEachFeature(feature, layer){
+			layer.on({
+				mouseover: highlightFeature,
+				mouseout: resetHighlight,
+				click: zoomToFeature
+			});
+		}
+
+		<!-- add US states polygon based on styling above -->
+		//$.getJSON("assets/us-states.geoJson", function(data){
+			//geojson = L.geoJson(data, {
+			geojson = L.geoJson(USstates, {
+				style: style,
+				onEachFeature: onEachFeature
+			});
+			//}).addTo(map);
+		//});
+
+		<!--Layer control -->
+		var baseLayers = {
+			"Grayscale": grayscale,
+			"Streets": streets
+		};
+
+		var pointsLayer = {
+			"Airports": airports,
+			"Airport Density": geojson
+		};
+
+		L.control.layers(baseLayers, pointsLayer).addTo(map);
+
+		</script>
+	</body>
+</html>
